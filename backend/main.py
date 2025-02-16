@@ -90,67 +90,86 @@ def compress_image(image_path, output_path, max_size_kb):
 from PIL import Image
 import os
 
-def compress_gif(
-    input_path: str,
-    output_path: str,
-    max_colors: int = 256,
-    sample_factor: float = 1.0
-) -> bool:
-    try:
-        # Open the GIF
-        with Image.open(input_path) as img:
-            # Get sequence of frames
-            frames = []
-            durations = []
-            
-            # Extract all frames and their durations
-            try:
-                while True:
-                    # If resizing is requested
-                    if sample_factor != 1.0:
-                        new_size = tuple(int(dim * sample_factor) for dim in img.size)
-                        frame = img.resize(new_size, Image.Resampling.LANCZOS)
-                    else:
-                        frame = img.copy()
+def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
+    """Compress a GIF while preserving animation."""
+    image = Image.open(image_path)
+    if not isinstance(image, GifImagePlugin.GifImageFile):
+        print(f"Skipping {image_path}: Not a valid GIF")
+        return
 
-                    # Convert to P mode with limited palette
-                    if frame.mode != 'P':
-                        frame = frame.convert(
-                            'P', 
-                            palette=Image.Palette.ADAPTIVE, 
-                            colors=max_colors
-                        )
-                        
-                    frames.append(frame)
-                    durations.append(img.info.get('duration', 100))
-                    img.seek(img.tell() + 1)
-            except EOFError:
-                pass  # Reached end of frame sequence
-                
-            # Save optimized GIF
-            frames[0].save(
+    # Store original dimensions for scale calculation
+    original_width, original_height = image.size
+    
+    frames = []
+    durations = []
+    
+    # Extract frames and durations
+    try:
+        for frame in range(image.n_frames):
+            image.seek(frame)
+            frame_image = image.copy()
+            frames.append(frame_image)
+            durations.append(max(20, int(image.info.get("duration", 100) * 0.8)))  # More aggressive duration reduction
+    except EOFError:
+        pass  # Handle corruption gracefully
+        
+    attempt = 0
+    scale_factor = 1.0
+    
+    # Start with more aggressive initial reduction
+    current_colors = 256
+    while attempt < max_attempts:
+        # Calculate new dimensions
+        new_width = max(50, int(original_width * scale_factor))
+        new_height = max(50, int(original_height * scale_factor))
+        
+        # Process frames with current settings
+        processed_frames = []
+        for frame in frames:
+            # Resize first
+            resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            # Then reduce colors
+            processed = resized.convert("P", palette=Image.ADAPTIVE, colors=current_colors)
+            processed_frames.append(processed)
+            
+        # Save current attempt
+        try:
+            processed_frames[0].save(
                 output_path,
+                format="GIF",
                 save_all=True,
-                append_images=frames[1:],
+                append_images=processed_frames[1:],
                 optimize=True,
+                loop=image.info.get("loop", 0),
                 duration=durations,
-                loop=0,
-                disposal=2,  # Restore to background color before rendering next frame
-                quality=85   # Lower quality for better compression
+                disposal=2
             )
             
-        # Print size comparison
-        original_size = os.path.getsize(input_path) / 1024
-        compressed_size = os.path.getsize(output_path) / 1024
-        print(f"Original size: {original_size:.2f}KB")
-        print(f"Compressed size: {compressed_size:.2f}KB")
-        print(f"Reduction: {((original_size - compressed_size) / original_size * 100):.1f}%")
+            compressed_size_kb = os.path.getsize(output_path) / 1024
+            print(f"Attempt {attempt + 1}: Compressed GIF size = {compressed_size_kb:.2f} KB")
+            print(f"Current dimensions: {new_width}x{new_height}, Colors: {current_colors}")
+            
+            if compressed_size_kb <= max_size_kb:
+                print("✅ GIF compression successful")
+                return True
+                
+        except Exception as e:
+            print(f"Error during save attempt: {e}")
+            
+        # More aggressive reduction strategy
+        if attempt < 1:
+            # First tries: reduce colors
+            scale_factor *= 0.7 
+            current_colors = max(64, current_colors // 2)
+        else:
+            # Later tries: reduce both size and colors
+            scale_factor *= 0.7  # More aggressive size reduction
+            current_colors = max(64, current_colors - 32)  # Gradual color reduction
+            
+        attempt += 1
         
-        return True
-        
-    except Exception as e:
-        print(f"Error compressing GIF: {e}")
-        return False
+    print("⚠️ GIF compression failed to reach the desired size limit.")
+    return False
 
 def get_alt_texts(image_paths, batch_size= 8):
     """Processes images in batches and retrieves alt texts."""
