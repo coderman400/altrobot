@@ -1,1 +1,11 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
+@theme {  
+    --color-dark-100: #272725;
+    --color-dark-200: #2f2f2d;
+    --color-text: #e3e5e1;
+    --font-libre: "Libre Baskerville", "serif";
+}
+
+  
