@@ -1,1 +1,0 @@
-The program process is interrupted if it is closed.

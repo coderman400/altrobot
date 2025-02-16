@@ -1,1 +1,0 @@
-The interface can be improved to be more user-friendly and filter by location.
