@@ -1,5 +1,9 @@
 temp_files
 backend/temp_files
+venv
+.env
+backend/venv
+backend/.env
 # Logs
 logs
 *.log
