@@ -1,0 +1,1 @@
+Settings panel with safe mode options for LinkedIn automation.

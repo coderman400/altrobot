@@ -1,1 +1,0 @@
-A three-step automation workflow including connection request and message steps.

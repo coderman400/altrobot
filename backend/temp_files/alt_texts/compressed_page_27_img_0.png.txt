@@ -1,1 +1,0 @@
-GetProspect issues including slow loading, blank screens, export failures, and a poor search UI.

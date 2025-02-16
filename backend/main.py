@@ -10,6 +10,7 @@ from PIL import Image, GifImagePlugin
 import imageio.v3 as iio  # For GIF compression
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from tqdm import tqdm
 
 # Initialize FastAPI
 app = FastAPI()
@@ -37,23 +38,24 @@ os.makedirs(IMAGE_DIR, exist_ok=True)
 os.makedirs(TEXT_DIR, exist_ok=True)
 
 # Function to extract images from PDF
+# Function to extract images from PDF
 def extract_images_from_pdf(pdf_bytes):
     pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
     extracted_images = []
-
+    img_no = 1
     for page_num in range(len(pdf_document)):
-        for img_index, img in enumerate(pdf_document[page_num].get_images(full=True)):
+        for img_index,img in tqdm(enumerate(pdf_document[page_num].get_images(full=True))):
             xref = img[0]
             base_image = pdf_document.extract_image(xref)
             img_bytes = base_image["image"]
             img_ext = base_image["ext"]
 
-            # Save original image
-            image_filename = f"page_{page_num + 1}_img_{img_index}.{img_ext}"
+            # Save original image temporarily
+            image_filename = f"{img_no}.{img_ext}"
             original_path = os.path.join(IMAGE_DIR, image_filename)
             with open(original_path, "wb") as f:
                 f.write(img_bytes)
-
+            print(image_filename)
             # Compress images
             compressed_path = os.path.join(IMAGE_DIR, f"compressed_{image_filename}")
             if img_ext in ["jpeg", "jpg", "png"]:
@@ -63,7 +65,12 @@ def extract_images_from_pdf(pdf_bytes):
             else:
                 os.rename(original_path, compressed_path)  # Keep original if unsupported
 
+            # Remove the original image after compression
+            if os.path.exists(original_path):
+                os.remove(original_path)
+
             extracted_images.append(compressed_path)
+            img_no+=1
 
     return extracted_images
 
@@ -134,10 +141,6 @@ def get_alt_texts(image_paths, batch_size= 8):
 
             print(f"✅ Batch processed: {alt_text_list}")
 
-            # Save as a .txt file
-            text_filename = os.path.join(TEXT_DIR, os.path.basename(img_path) + ".txt")
-            with open(text_filename, "w", encoding="utf-8") as txt_file:
-                txt_file.write(alt_text)
 
         except Exception as e:
             alt_texts[img_path] = f"Error: {str(e)}"
@@ -158,8 +161,8 @@ def create_zip():
 async def upload_pdf(file: UploadFile = File(...)):
     try:
         pdf_bytes = await file.read()
+        
         image_paths = extract_images_from_pdf(pdf_bytes)
-
         if not image_paths:
             return {"error": "No images found in PDF."}
 
@@ -168,7 +171,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         # Save alt texts to text files
         for img_path, alt_text in alt_texts.items():
-            txt_filename = os.path.join(TEXT_DIR, f"{os.path.basename(img_path)}.txt")
+            txt_filename = os.path.join(TEXT_DIR, f"{os.path.splitext(os.path.basename(img_path))[0]}.txt")
             with open(txt_filename, "w") as txt_file:
                 txt_file.write(alt_text)
 
