@@ -2,7 +2,7 @@ import os
 import io
 import shutil
 import zipfile
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Response
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image, GifImagePlugin
@@ -234,15 +234,36 @@ def clean_temp_files():
 @app.post("/upload_pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
+        # Clean up before starting new process
+        if os.path.exists(ZIP_PATH):
+            try:
+                os.remove(ZIP_PATH)
+            except Exception as e:
+                print(f"Could not remove existing ZIP: {e}")
+                
+        # Clean directories but keep the structure
+        for folder in [IMAGE_DIR, TEXT_DIR]:
+            if os.path.exists(folder):
+                for filename in os.listdir(folder):
+                    file_path = os.path.join(folder, filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print(f"Error deleting {file_path}: {e}")
+
+        # Process the file
         docx_bytes = await file.read()
         print("READ FILE!")
         image_paths = extract_images_from_docx(docx_bytes)
         if not image_paths:
             return {"error": "No images found in PDF."}
         print("IMAGES GOTTED!")
+        
         # Generate alt texts
         alt_texts = get_alt_texts(image_paths)
         print("ALT TEXT GOTTED!")
+        
         # Save alt texts to text files
         for img_path, alt_text in alt_texts.items():
             txt_filename = os.path.join(TEXT_DIR, f"{os.path.splitext(os.path.basename(img_path))[0]}.txt")
@@ -255,9 +276,34 @@ async def upload_pdf(file: UploadFile = File(...)):
         if not os.path.exists(ZIP_PATH):
             return {"error": f"ZIP file missing at {ZIP_PATH}"}
         
-        response = FileResponse(ZIP_PATH, filename="compressed_results.zip", media_type="application/zip")
+        # Read the ZIP file into memory before sending
+        with open(ZIP_PATH, 'rb') as f:
+            zip_data = f.read()
+            
+        # Clean up after reading the file
+        try:
+            for folder in [IMAGE_DIR, TEXT_DIR]:
+                for filename in os.listdir(folder):
+                    file_path = os.path.join(folder, filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print(f"Error during cleanup: {e}")
+                        
+            if os.path.exists(ZIP_PATH):
+                os.unlink(ZIP_PATH)
+        except Exception as e:
+            print(f"Cleanup error: {e}")
 
-        return response
+        # Return the ZIP data from memory
+        return Response(
+            content=zip_data,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=compressed_results.zip"
+            }
+        )
 
     except Exception as e:
         return {"error": str(e)}
