@@ -38,31 +38,6 @@ const App = () => {
   };
 
   return (
-    // <div className="flex flex-col items-center p-4 border rounded-lg shadow-md max-w-md mx-auto">
-    //   <input
-    //     type="file"
-    //     accept="application/pdf"
-    //     onChange={handleFileChange}
-    //     className="mb-4 border p-2 rounded"
-    //   />
-    //   <button
-    //     onClick={handleUpload}
-    //     className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
-    //     disabled={loading}
-    //   >
-    //     {loading ? "Uploading..." : "Upload PDF"}
-    //   </button>
-
-    //   {downloadUrl && (
-    //     <a
-    //       href={downloadUrl}
-    //       download="compressed_results.zip"
-    //       className="mt-4 text-green-600 underline"
-    //     >
-    //       Download Compressed ZIP
-    //     </a>
-    //   )}
-    // </div>
     <div className="min-h-screen flex flex-col items-center">
       <div className="mt-20">
         <h1 className="text-3xl text-center font-libre tracking-wider">Draft approved? Just drop the .docx</h1>
@@ -81,7 +56,7 @@ const App = () => {
             ) : (
               <>
                 <FileUp className="w-12 h-12 mb-2" />
-                <p className="text-sm font-medium ">Click or drag to upload PDF</p>
+                <p className="text-sm font-medium ">Click or drag to upload .docx</p>
               </>
             )}
           </label>
@@ -90,7 +65,7 @@ const App = () => {
             <button
               onClick={handleUpload}
               disabled={loading}
-              className="w-full py-2 px-4 bg-[#5f51a1] hover:bg-[#4b3f7e] hover:cursor-pointer text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-[#5f51a1] hover:bg-[#4b3f7e] hover:cursor-pointer text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -109,7 +84,7 @@ const App = () => {
             <a
               href={downloadUrl}
               download="compressed_results.zip"
-              className="block w-full py-2 px-4 bg-[#d97757] hover:bg-[#c4816b] text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 transition-colors text-center"
+              className="block w-full py-3 px-4 bg-text text-dark-100 hover:bg-[#c4816b] font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-opacity-75 transition-colors text-center"
             >
               Download Compressed ZIP
             </a>
