@@ -1,3 +1,5 @@
+temp_files
+backend/temp_files
 # Logs
 logs
 *.log
