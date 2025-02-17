@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import {FileUp ,Upload, Loader2} from 'lucide-react'
 import Navbar from "./Navbar";
@@ -8,6 +8,18 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
 
+  useEffect(() => {
+    const wakeupBackend = async () => {
+      try {
+        const response = await axios.get('https://altrobot.onrender.com/wakeup');
+        console.log(response.data.message);  // Logs the wake-up message
+      } catch (error) {
+        console.error('Error waking up the backend:', error);
+      }
+    };
+
+    wakeupBackend();
+  }, []);
 // Handle file selection
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
