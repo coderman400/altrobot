@@ -360,3 +360,8 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/wakeup")
+async def wakeup():
+    return {"message": "Backend is awake!"}
