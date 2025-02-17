@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import {FileUp ,Upload, Loader2} from 'lucide-react'
 import Navbar from "./Navbar";
+import Info from "./Info";
 const App = () => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -41,10 +42,10 @@ const App = () => {
   return (
     <>
     <Navbar />
-    <div className="min-h-screen flex flex-col items-center">
+    <div className=" flex flex-col items-center">
       <div className="mt-20">
         <h1 className="text-3xl text-center font-libre tracking-wider">Draft approved? Just drop the .docx</h1>
-        <div className="space-y-4 mt-16 font-libre">
+        <div className="space-y-4 mt-16 px-8 font-libre">
           <label
             htmlFor="fileInput"
             className={`border-2 border-dashed bg-[#3d3d3a] text-text rounded-lg p-16 flex flex-col items-center justify-center cursor-pointer transition-colors ${
@@ -95,6 +96,7 @@ const App = () => {
           </div>
         </div>
     </div>
+    <Info />
     </>
   );
 };

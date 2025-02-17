@@ -41,34 +41,87 @@ ZIP_PATH = os.path.join(TEMP_DIR, "compressed_results.zip")
 os.makedirs(IMAGE_DIR, exist_ok=True)
 os.makedirs(TEXT_DIR, exist_ok=True)
 
-# Function to extract images from PDF
+from xml.etree import ElementTree
+import re
+
 def extract_images_from_docx(docx_bytes):
+    """Extract images from DOCX while preserving their order in the document."""
     extracted_images = []
+    image_rels = {}  # Map relationship IDs to image files
+    image_order = []  # Store the order of images as they appear
     
     with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as docx_zip:
-        for file in docx_zip.namelist():
-            if file.startswith("word/media/"):
-                file_name = os.path.basename(file)
-                file_path = os.path.join(IMAGE_DIR, file_name)
-
-                with open(file_path, "wb") as img_file:
-                    img_file.write(docx_zip.read(file))
-
-                # Compress images
-                compressed_path = os.path.join(IMAGE_DIR, f"compressed_{file_name}")
-                if file_name.endswith(("jpeg", "jpg", "png")):
-                    compress_image(file_path, compressed_path, 100)  # Compress to 100KB
-                elif file_name.endswith("gif"):
-                    compress_gif(file_path, compressed_path, 500)  # Compress GIFs
-                else:
-                    os.rename(file_path, compressed_path)  # Keep original if unsupported
+        # First, get the relationship mappings
+        try:
+            rels_content = docx_zip.read('word/_rels/document.xml.rels')
+            rels_tree = ElementTree.fromstring(rels_content)
+            
+            # Map relationship IDs to image filenames
+            for rel in rels_tree.findall('.//{http://schemas.openxmlformats.org/package/2006/relationships}Relationship'):
+                rid = rel.get('Id')
+                target = rel.get('Target')
+                if 'media/' in target:
+                    image_rels[rid] = target.split('/')[-1]
+        except Exception as e:
+            print(f"Error reading relationships: {e}")
+            
+        # Read the main document to get image order
+        try:
+            doc_content = docx_zip.read('word/document.xml')
+            doc_tree = ElementTree.fromstring(doc_content)
+            
+            # Find all drawing elements that contain images
+            namespace = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+                        'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+                        'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}
+            
+            # Get all images in order of appearance
+            for img in doc_tree.findall('.//a:blip', namespace):
+                rid = img.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+                if rid in image_rels:
+                    image_order.append(image_rels[rid])
+        except Exception as e:
+            print(f"Error reading document structure: {e}")
+            
+        # If we couldn't get proper order, fall back to media directory order
+        if not image_order:
+            image_order = [name.split('/')[-1] for name in docx_zip.namelist() 
+                          if name.startswith('word/media/')]
+            
+        # Process images in the correct order
+        for idx, img_name in enumerate(image_order, 1):
+            try:
+                # Extract the image
+                img_data = docx_zip.read(f'word/media/{img_name}')
+                file_path = os.path.join(IMAGE_DIR, img_name)
                 
+                # Save original image
+                with open(file_path, "wb") as img_file:
+                    img_file.write(img_data)
+                
+                # Add numbering prefix to maintain order
+                base_name = f"{idx:03d}" 
+                compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}")
+                
+                # Compress based on file type
+                if img_name.lower().endswith(("jpeg", "jpg", "png")):
+                    compress_image(file_path, compressed_path, 100)
+                elif img_name.lower().endswith("gif"):
+                    compress_gif(file_path, compressed_path, 500)
+                else:
+                    os.rename(file_path, compressed_path)
+                
+                # Clean up original
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                print(f"FILE ADDING!")
+                    
+                print(f"Processed image {idx}: {img_name}")
                 extracted_images.append(compressed_path)
+                
+            except Exception as e:
+                print(f"Error processing image {img_name}: {e}")
 
-    return extracted_images
+    return sorted(extracted_images)  # Return sorted by the numeric prefix
 
 # Function to compress images
 def compress_image(image_path, output_path, max_size_kb):
