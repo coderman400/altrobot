@@ -8,16 +8,24 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
 
-  // Handle file selection
+// Handle file selection
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
-    setDownloadUrl(""); // Reset previous downloads
+    const selectedFile = event.target.files[0];
+    
+    // Validate if the file is a .docx
+    if (selectedFile && selectedFile.name.toLowerCase().endsWith('.docx')) {
+      setFile(selectedFile);
+      setDownloadUrl(""); // Reset previous downloads
+    } else {
+      alert("Please select a .docx file.");
+      setFile(null);  // Clear file if it's not .docx
+    }
   };
 
   // Handle file upload
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select a PDF file.");
+      alert("Please select a .docx file.");
       return;
     }
 
@@ -26,7 +34,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("http://127.0.0.1:8000/upload_pdf/", formData, {
+      const response = await axios.post("https://altrobot.onrender.com/upload_pdf/", formData, {
         responseType: "blob", 
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -64,7 +72,7 @@ const App = () => {
               </>
             )}
           </label>
-          <input type="file" id="fileInput" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+          <input type="file" id="fileInput" accept=".docx" onChange={handleFileChange} className="hidden" />
           {file && (
             <button
               onClick={handleUpload}
@@ -79,7 +87,7 @@ const App = () => {
               ) : (
                 <>
                   <Upload className="w-4 h-4 mr-2 inline" />
-                  Upload PDF
+                  Upload DOCX
                 </>
               )}
             </button>
