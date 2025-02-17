@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import {FileUp ,Upload, Loader2} from 'lucide-react'
+import Navbar from "./Navbar";
 const App = () => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,8 @@ const App = () => {
   };
 
   return (
+    <>
+    <Navbar />
     <div className="min-h-screen flex flex-col items-center">
       <div className="mt-20">
         <h1 className="text-3xl text-center font-libre tracking-wider">Draft approved? Just drop the .docx</h1>
@@ -92,6 +95,7 @@ const App = () => {
           </div>
         </div>
     </div>
+    </>
   );
 };
 
