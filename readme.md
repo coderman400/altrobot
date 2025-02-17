@@ -40,9 +40,33 @@ A web application that processes `.docx` files to:
 ```bash
 pip install -r requirements.txt
 ```
-.env File (Google Gemini API Key)
 
-Create a .env file in the root directory:
+### .env File (Google Gemini API Key)
 
+#### Create a .env file in the root directory:
+```bash
 API_KEY=your_google_gemini_api_key
+```
 
+### Run the server
+
+```bash
+uvicorn main:app --reload
+```
+
+
+### **2. Frontend (React.js)**
+#### **Prerequisites:**  
+- Node.js & npm/yarn
+
+### Install dependencies:  
+
+```bash
+npm install
+```
+
+### Run server
+
+```bash
+npm run dev
+```
