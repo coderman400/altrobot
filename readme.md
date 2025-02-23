@@ -8,7 +8,7 @@ A web application that processes `.docx` files to:
 
 ##  Tech Stack  
 - **Frontend:** React, Tailwind CSS  
-- **Backend:** FastAPI  
+- **Backend:** Flask
 - **AI Integration:** Google Gemini API  
 
 ---
@@ -32,7 +32,7 @@ A web application that processes `.docx` files to:
 
 ##  Setup Instructions  
 
-### **1️⃣ Backend (FastAPI)**
+### **1️⃣ Backend (Flask)**
 #### **Prerequisites:**  
 - Python 3.9+  
 - Install dependencies:  
@@ -51,7 +51,7 @@ API_KEY=your_google_gemini_api_key
 ### Run the server
 
 ```bash
-uvicorn main:app --reload
+flask run
 ```
 
 
