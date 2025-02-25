@@ -96,14 +96,28 @@ def extract_images_from_docx(docx_bytes):
                     img_file.write(img_data)
 
                 base_name = f"{idx:03d}"
-                compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}")
+                if img_name.lower().endswith(("jpeg", "jpg")):
+                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")
+                elif img_name.lower().endswith("png"):
+                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")  # Convert PNG to JPG
+                elif img_name.lower().endswith("gif"):
+                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.gif")
+                else:
+                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")  # Default to JPG
 
                 if img_name.lower().endswith(("jpeg", "jpg", "png")):
                     compress_image(file_path, compressed_path, 100)
                 elif img_name.lower().endswith("gif"):
                     compress_gif(file_path, compressed_path, 500)
                 else:
-                    os.rename(file_path, compressed_path)
+                    try:
+                        img = Image.open(file_path)
+                        if img.mode == "RGBA":
+                            img = img.convert("RGB")
+                        img.save(compressed_path, "JPEG", quality=95)
+                    except Exception as e:
+                        print(f"Error converting unknown format: {e}")
+                        continue
 
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -218,9 +232,9 @@ def get_alt_texts(image_paths, batch_size=8):
             response = model.generate_content(
                 contents=[
                     {"role": "user", "parts": [
-                        {"text": "Generate a one-line alt text for each image. Return a list, one alt text per line. DONT RETURN ANYTHING ELSE BUT THE ALT TEXTS. Dont mention anything like 'here are the alt texts' or any other generated text."}
+                        {"text": "Generate a one-line alt text for each image. Return a list, one alt text per line. Dont say anything like 'here are the alt texts' or any other generated text from your end. DONT RETURN ANYTHING ELSE BUT THE ALT TEXTS."}
                     ] + image_data}
-                ],
+                ],request_options={"timeout": 1000},
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -337,4 +351,4 @@ def wakeup():
     return jsonify({"message": "Backend is awake!"})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
