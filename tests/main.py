@@ -7,6 +7,14 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image, GifImagePlugin
 from dotenv import load_dotenv
 from xml.etree import ElementTree
+from google.api_core import retry
+from typing_extensions import TypedDict,List
+
+class AltTexts(TypedDict):
+    texts: List[str]
+
+def add_to_database(alt_texts: AltTexts):
+    pass
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,7 +25,7 @@ api_key = os.getenv("API_KEY")
 
 # Configure Gemini API
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+model = genai.GenerativeModel(model_name="gemini-2.0-flash", tools=[add_to_database])
 
 # Directories
 TEMP_DIR = "temp_files"
@@ -188,7 +196,7 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
 
     return False
 
-def get_alt_texts(image_paths,file_name, batch_size=4):
+def get_alt_texts(image_paths,file_name, batch_size=8):
     """Processes images in batches and retrieves alt texts."""
     alt_texts = {}
 
@@ -209,14 +217,14 @@ def get_alt_texts(image_paths,file_name, batch_size=4):
                     {"role": "user", "parts": [
                         {"text": "Generate a one-line alt text for each image. Return a list, one alt text per line. Dont say anything like 'here are the alt texts' or any other generated text from your end. DONT RETURN ANYTHING ELSE BUT THE ALT TEXTS."}
                     ] + image_data}
-                ],request_options={"timeout": 1000},
+                ],request_options={"timeout": 1000,'retry':retry.Retry()},
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                },
+                },tool_config={'function_calling_config':'ANY'}
             )
-
-            alt_text_list = response.text.strip().split("\n") if response.text else ["No alt text"] * len(batch)
+            fc = response.candidates[0].content.parts[0].function_call
+            alt_text_list = type(fc).to_dict(fc)["args"]["alt_texts"]["texts"]
 
             for img, alt_text in zip(batch, alt_text_list):
                 alt_texts[img] = alt_text
