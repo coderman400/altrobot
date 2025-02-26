@@ -6,7 +6,6 @@ from flask import Flask, request, send_file, jsonify
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image, GifImagePlugin
-from werkzeug.utils import secure_filename
 from tqdm import tqdm
 from dotenv import load_dotenv
 from xml.etree import ElementTree
