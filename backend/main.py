@@ -356,6 +356,6 @@ def upload_pdf():
 @app.route("/wakeup")
 def wakeup():
     return jsonify({"message": "Backend is awake!"})
-
+port = os.getenv("PORT", 5000)
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0",port=port)
