@@ -1,4 +1,5 @@
 temp_files
+tests/docs
 backend/temp_files
 venv
 .env

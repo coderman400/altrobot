@@ -1,9 +1,12 @@
-fastapi==0.115.8
-uvicorn==0.34.0
+
 google-generativeai==0.8.4
 Pillow==10.4.0
-tqdm==4.67.1
 python-dotenv==1.0.1
 pydantic==2.10.6
 python-multipart==0.0.20
-requests==2.32.3
+google-api-core==2.24.1
+flask==3.0.2
+flask-Cors==4.0.1
+tqdm==4.66.2
+requests==2.31.0
+xmltodict==0.13.0

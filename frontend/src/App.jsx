@@ -13,7 +13,7 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('https://krbala.pythonanywhere.com/wakeup');
+        const response = await axios.get('https://altrobot-67bf.onrender.com/wakeup');
         console.log(response.data.message);
       } catch (error) {
         console.error('Error waking up the backend:', error);
@@ -75,7 +75,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://krbala.pythonanywhere.com/upload_pdf", formData, {
+      const response = await axios.post("https://altrobot-67bf.onrender.com/upload_pdf", formData, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
