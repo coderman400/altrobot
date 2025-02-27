@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, UploadFile, HTTPException
 from fastapi.responses import FileResponse
+import requests
 import os
 import uuid
 from utils import *
@@ -29,6 +30,7 @@ tasks = {}
 async def upload_file(file: UploadFile):
     """ Uploads a file and returns a file ID """
     clean_dir(RESULTS_DIR)
+    log.info(requests.get("https://alt-generator.onrender.com/wakeup"))
     file_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_FOLDER, file_id + "_" + file.filename)
     
@@ -43,39 +45,38 @@ async def upload_file(file: UploadFile):
         log.error(f"File upload failed: {e}")
         raise HTTPException(status_code=500, detail="File upload failed")
 
-@app.websocket("/ws/{file_id}")
-async def websocket_endpoint(websocket: WebSocket, file_id: str):
-    """ Handles WebSocket communication for document processing """
-    await websocket.accept()
-    
+@app.post("/process/{file_id}")
+async def process_file(file_id: str):
+    """ Processes a previously uploaded file and returns download URL """
     if file_id not in tasks:
-        await websocket.send_json({"status": "error", "message": "Invalid file ID"})
-        await websocket.close()
-        return
+        raise HTTPException(status_code=404, detail="Invalid file ID")
 
     try:
         file_path = tasks[file_id]["file_path"]
 
         # Check if file exists
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File {file_path} not found")
+            raise HTTPException(status_code=404, detail="File not found")
 
         with open(file_path, "rb") as file:
             docx_bytes = file.read()
         log.info(f"File {file_path} read successfully")
 
+        # Extract images
         image_paths = extract_images_from_docx(docx_bytes)
         if not image_paths:
-            await websocket.send_json({"status": "error", "message": "No images found in document."})
-            await websocket.close()
-            return
+            raise HTTPException(status_code=400, detail="No images found in document")
         
-        await websocket.send_json({"status": "processing", "progress": 33})
+        # Update task status
+        tasks[file_id]["status"] = "processing"
+        tasks[file_id]["progress"] = 33
 
+        # Get alt texts
         alt_texts = get_alt_texts(image_paths, file_id)
         log.info("Extracted alt texts")
-        await websocket.send_json({"status": "processing", "progress": 66})
+        tasks[file_id]["progress"] = 66
 
+        # Write alt texts to files
         for img_path, alt_text in alt_texts.items():
             try:
                 txt_filename = os.path.join(TEXT_DIR, f"{img_path.split('.')[0]}.txt")
@@ -84,29 +85,25 @@ async def websocket_endpoint(websocket: WebSocket, file_id: str):
             except Exception as e:
                 log.error(f"Failed to write alt text for {img_path}: {e}")
 
+        # Create zip file
         create_zip(file_id)
         log.info("Created ZIP file")
-        await websocket.send_json({"status": "processing", "progress": 90})
+        tasks[file_id]["progress"] = 90
 
         # Processing complete
         tasks[file_id]["status"] = "completed"
+        tasks[file_id]["progress"] = 100
         download_url = f"/download/{file_id}"
         
-        await websocket.send_json({"status": "completed", "progress": 100, "download_url": download_url})
-        await websocket.close()
-
-        # Cleanup temporary files
-        
+        return {"status": "completed", "download_url": download_url}
 
     except FileNotFoundError as e:
         log.error(f"File error: {e}")
-        await websocket.send_json({"status": "error", "message": "File not found"})
-        await websocket.close()
+        raise HTTPException(status_code=404, detail="File not found")
     
     except Exception as e:
         log.error(f"Unexpected error: {e}")
-        await websocket.send_json({"status": "error", "message": "Internal server error"})
-        await websocket.close()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 

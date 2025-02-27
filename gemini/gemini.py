@@ -90,6 +90,9 @@ def get_alt_texts(image_paths, batch_size=8):
 
     return alt_texts
 
+@app.get("/wakeup")
+def wakeup():
+    return JSONResponse(content={"status": "awake"})
 
 @app.post("/generate-alt-texts")
 def generate_alt_texts(files: List[UploadFile] = File(...)):
