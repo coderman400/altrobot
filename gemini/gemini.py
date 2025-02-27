@@ -36,7 +36,7 @@ load_dotenv()
 
 # Access API Key
 api_key = os.getenv("API_KEY")
-print(api_key)
+
 
 class AltTexts(TypedDict):
     texts: List[str]
