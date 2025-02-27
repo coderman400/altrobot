@@ -1,6 +1,5 @@
-from fastapi import FastAPI, WebSocket, UploadFile, HTTPException
-from fastapi.responses import FileResponse
-import requests
+from fastapi import FastAPI,UploadFile, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 import os
 import uuid
 from utils import *
@@ -26,11 +25,14 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 tasks = {}
 
+@app.get("/wakeup")
+async def wakeup():
+    return JSONResponse(content={"status": "awake"})
+
 @app.post("/upload/")
 async def upload_file(file: UploadFile):
     """ Uploads a file and returns a file ID """
     clean_dir(RESULTS_DIR)
-    log.info(requests.get("https://alt-generator.onrender.com/wakeup"))
     file_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_FOLDER, file_id + "_" + file.filename)
     
