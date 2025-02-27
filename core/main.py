@@ -32,7 +32,6 @@ async def wakeup():
 @app.post("/upload/")
 async def upload_file(file: UploadFile):
     """ Uploads a file and returns a file ID """
-    clean_dir(RESULTS_DIR)
     file_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_FOLDER, file_id + "_" + file.filename)
     
