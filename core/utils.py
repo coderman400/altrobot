@@ -52,7 +52,7 @@ def extract_images_from_docx(docx_bytes):
     extracted_images = []
     image_rels = {}  # Map relationship IDs to image files
     image_order = []  # Store the order of images as they appear
-
+    log.info("Extracting images from DOCX...")
     with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as docx_zip:
         # First, get the relationship mappings
         try:
@@ -136,6 +136,7 @@ def extract_images_from_docx(docx_bytes):
     return sorted(extracted_images)
 
 def compress_image(image_path, output_path, max_size_kb):
+    log.info(f"Compressing image: {image_path}...")
     """Compress an image (JPG/PNG) to a max size in KB."""
     image = Image.open(image_path)
 
@@ -150,6 +151,7 @@ def compress_image(image_path, output_path, max_size_kb):
         quality -= 5
 
 def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
+    log.info(f"Compressing GIF: {image_path}...")
     """Compress a GIF while preserving animation."""
     image = Image.open(image_path)
     if not isinstance(image, GifImagePlugin.GifImageFile):
@@ -214,6 +216,7 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
     return False
 
 def get_alt_texts(image_paths, batch_size=8):
+    log.info("Processing images...")
     files_data = []
     for path in image_paths:
         with open(f"{path}", "rb") as img_file:
@@ -224,6 +227,7 @@ def get_alt_texts(image_paths, batch_size=8):
 
 
 def create_zip(file_id):
+    log.info("Creating ZIP file...")
     with zipfile.ZipFile(zip_path(file_id), "w", zipfile.ZIP_DEFLATED) as zipf:
         for folder in [IMAGE_DIR, TEXT_DIR]:
             for root, _, files in os.walk(folder):
