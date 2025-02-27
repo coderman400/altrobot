@@ -12,7 +12,7 @@ def call_alt_text_api(image_paths: List[str]):
         with open(f"{IMAGES_DIR}/{path}", "rb") as img_file:
             files_data.append(("files", (path, img_file.read(), "image/jpeg")))
     
-    response = requests.post("http://127.0.0.1:8000/generate-alt-texts", files=files_data)
+    response = requests.post("https://alt-generator.onrender.com/generate-alt-texts", files=files_data)
     return response.json()
 
 images = os.listdir("temp_files/compressed_images")
