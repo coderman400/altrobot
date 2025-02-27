@@ -5,6 +5,6 @@ import App from './App.jsx'
 import Maintenance from './Maintenance.jsx'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Maintenance />
+    <App />
   </StrictMode>,
 )
