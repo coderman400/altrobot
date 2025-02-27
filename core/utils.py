@@ -219,7 +219,7 @@ def get_alt_texts(image_paths, batch_size=8):
         with open(f"{path}", "rb") as img_file:
             files_data.append(("files", (os.path.basename(path), img_file.read(), "image/jpeg")))
     
-    response = requests.post("http://127.0.0.1:8001/generate-alt-texts", files=files_data)
+    response = requests.post("https://alt-generator.onrender.com/generate-alt-texts", files=files_data)
     return response.json()
 
 

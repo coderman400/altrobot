@@ -78,7 +78,7 @@ async def websocket_endpoint(websocket: WebSocket, file_id: str):
 
         for img_path, alt_text in alt_texts.items():
             try:
-                txt_filename = os.path.join(TEXT_DIR, f"{img_path.split(".")[0]}.txt")
+                txt_filename = os.path.join(TEXT_DIR, f"{img_path.split('.')[0]}.txt")
                 with open(txt_filename, "w") as txt_file:
                     txt_file.write(alt_text)
             except Exception as e:
