@@ -2,12 +2,8 @@ import os
 import io
 import shutil
 import zipfile
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image, GifImagePlugin
-from dotenv import load_dotenv
 from xml.etree import ElementTree
-from google.api_core import retry
 from typing_extensions import TypedDict,List
 import logging
 import colorlog
@@ -35,17 +31,6 @@ class AltTexts(TypedDict):
 
 def add_to_database(alt_texts: AltTexts):
     pass
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Access API Key
-api_key = os.getenv("API_KEY")
-
-
-# Configure Gemini API
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(model_name="gemini-2.0-flash", tools=[add_to_database])
 
 # Directories
 TEMP_DIR = "temp_files"
