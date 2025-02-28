@@ -27,7 +27,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 log = logging.getLogger()
 log.addHandler(handler)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 os.makedirs("compressed_images", exist_ok=True)
 
