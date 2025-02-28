@@ -4,10 +4,11 @@ import shutil
 import zipfile
 from PIL import Image, GifImagePlugin
 from xml.etree import ElementTree
-from typing_extensions import TypedDict,List
+from typing_extensions import TypedDict, List
 import logging
 import colorlog
-import requests
+import httpx
+import asyncio
 
 formatter = colorlog.ColoredFormatter(
     "%(log_color)s%(levelname)s:%(reset)s %(message)s",
@@ -37,21 +38,26 @@ TEMP_DIR = "temp_files"
 ZIP_DIR = "results"
 UPLOADS_DIR = "uploads"
 RESULTS_DIR = "results"
-IMAGE_DIR = os.path.join(TEMP_DIR, "compressed_images")
-TEXT_DIR = os.path.join(TEMP_DIR, "alt_texts")
+IMAGE_DIR = lambda file_id: os.path.join(TEMP_DIR, file_id, "compressed_images")
+TEXT_DIR = lambda file_id: os.path.join(TEMP_DIR, file_id, "alt_texts")
 ZIP_PATH = os.path.join(ZIP_DIR, "compressed_results.zip")
-zip_path = lambda file_id : ZIP_PATH.split(".")[0]+"_"+file_id+".zip"
+zip_path = lambda file_id: ZIP_PATH.split(".")[0]+"_"+file_id+".zip"
 
 os.makedirs(ZIP_DIR, exist_ok=True)
-os.makedirs(IMAGE_DIR, exist_ok=True)
-os.makedirs(TEXT_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-def extract_images_from_docx(docx_bytes):
+async def extract_images_from_docx(docx_bytes, file_id):
     """Extract images from DOCX while preserving their order in the document."""
     extracted_images = []
     image_rels = {}  # Map relationship IDs to image files
     image_order = []  # Store the order of images as they appear
+    
+    # Create directories for this file ID
+    temp_dir = os.path.join(TEMP_DIR, file_id)
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(IMAGE_DIR(file_id), exist_ok=True)
+    os.makedirs(TEXT_DIR(file_id), exist_ok=True)
+    
     log.info("Extracting images from DOCX...")
     with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as docx_zip:
         # First, get the relationship mappings
@@ -88,52 +94,69 @@ def extract_images_from_docx(docx_bytes):
             image_order = [name.split('/')[-1] for name in docx_zip.namelist()
                           if name.startswith('word/media/')]
 
+        # Process images concurrently using asyncio tasks
+        tasks = []
         for idx, img_name in enumerate(image_order, 1):
-            try:
-                img_data = docx_zip.read(f'word/media/{img_name}')
-                file_path = os.path.join(IMAGE_DIR, img_name)
-
-                with open(file_path, "wb") as img_file:
-                    img_file.write(img_data)
-
-                base_name = f"{idx:03d}"
-                if img_name.lower().endswith(("jpeg", "jpg")):
-                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")
-                elif img_name.lower().endswith("png"):
-                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")  # Convert PNG to JPG
-                elif img_name.lower().endswith("gif"):
-                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.gif")
-                else:
-                    compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")  # Default to JPG
-
-                if img_name.lower().endswith(("jpeg", "jpg", "png")):
-                    compress_image(file_path, compressed_path, 95)
-                elif img_name.lower().endswith("gif"):
-                    compress_gif(file_path, compressed_path, 500)
-                else:
-                    try:
-                        # If the image has a palette mode (P), convert it to RGB
-                        if img.mode == 'P':
-                            img = img.convert("RGBA")  # Convert P to RGBA first (preserves transparency)
-
-                        # If the image has transparency, we need to remove it before converting to JPEG
-                        if img.mode == 'RGBA':
-                            background = Image.new("RGB", img.size, (255, 255, 255))  # Create a white background
-                            img = Image.alpha_composite(background, img).convert("RGB")  # Merge and remove transparency
-
-                        img.save(compressed_path, "JPEG", quality=95)
-                    except Exception as e:
-                        print(f"Error converting unknown format: {e}")
-                        continue
-
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                extracted_images.append(compressed_path)
-
-            except Exception as e:
-                log.error(f"Error processing image {img_name}: {e}")
-
+            tasks.append(
+                process_image(docx_zip, img_name, idx, file_id)
+            )
+        
+        # Wait for all image processing tasks to complete
+        extracted_images = await asyncio.gather(*tasks)
+        
+    # Filter out None values from extracted_images (failed processing)
+    extracted_images = [img for img in extracted_images if img]
     return sorted(extracted_images)
+
+async def process_image(docx_zip, img_name, idx, file_id):
+    try:
+        img_data = docx_zip.read(f'word/media/{img_name}')
+        temp_path = os.path.join(TEMP_DIR, file_id, f"temp_{img_name}")
+
+        with open(temp_path, "wb") as img_file:
+            img_file.write(img_data)
+
+        base_name = f"{idx:03d}"
+        if img_name.lower().endswith(("jpeg", "jpg")):
+            compressed_path = os.path.join(IMAGE_DIR(file_id), f"compressed_{base_name}.jpg")
+        elif img_name.lower().endswith("png"):
+            compressed_path = os.path.join(IMAGE_DIR(file_id), f"compressed_{base_name}.jpg")  # Convert PNG to JPG
+        elif img_name.lower().endswith("gif"):
+            compressed_path = os.path.join(IMAGE_DIR(file_id), f"compressed_{base_name}.gif")
+        else:
+            compressed_path = os.path.join(IMAGE_DIR(file_id), f"compressed_{base_name}.jpg")  # Default to JPG
+
+        # Run compression in a thread pool to not block the event loop
+        if img_name.lower().endswith(("jpeg", "jpg", "png")):
+            await asyncio.to_thread(compress_image, temp_path, compressed_path, 95)
+        elif img_name.lower().endswith("gif"):
+            await asyncio.to_thread(compress_gif, temp_path, compressed_path, 500)
+        else:
+            # Handle other formats
+            try:
+                img = Image.open(temp_path)
+                # If the image has a palette mode (P), convert it to RGB
+                if img.mode == 'P':
+                    img = img.convert("RGBA")  # Convert P to RGBA first (preserves transparency)
+
+                # If the image has transparency, we need to remove it before converting to JPEG
+                if img.mode == 'RGBA':
+                    background = Image.new("RGB", img.size, (255, 255, 255))  # Create a white background
+                    img = Image.alpha_composite(background, img).convert("RGB")  # Merge and remove transparency
+
+                img.save(compressed_path, "JPEG", quality=95)
+            except Exception as e:
+                log.error(f"Error converting unknown format: {e}")
+                return None
+
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        return compressed_path
+
+    except Exception as e:
+        log.error(f"Error processing image {img_name}: {e}")
+        return None
 
 def compress_image(image_path, output_path, max_size_kb):
     log.info(f"Compressing image: {image_path}...")
@@ -202,7 +225,7 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
                 return True
 
         except Exception as e:
-            log.error("Error during save attempt: {e}")
+            log.error(f"Error during save attempt: {e}")
 
         if attempt < 1:
             scale_factor *= 0.7
@@ -215,52 +238,68 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
 
     return False
 
-def get_alt_texts(image_paths, batch_size=8):
-    log.info("Processing images...")
-    files_data = []
-    for path in image_paths:
-        with open(f"{path}", "rb") as img_file:
-            files_data.append(("files", (os.path.basename(path), img_file.read(), "image/jpeg")))
+async def get_alt_texts(image_paths, file_id):
+    log.info("Processing images for alt text...")
     
-    response = requests.post("https://alt-generator.onrender.com/generate-alt-texts", files=files_data)
-    return response.json()
+    # Using httpx for async HTTP requests
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        files_data = []
+        for path in image_paths:
+            with open(path, "rb") as img_file:
+                img_content = img_file.read()
+                files_data.append(("files", (os.path.basename(path), img_content, "image/jpeg")))
+        
+        try:
+            response = await client.post("http://127.0.0.1:8001/generate-alt-texts", files=files_data)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.error(f"Error getting alt texts: {e}")
+            # Return empty alt texts for all images as fallback
+            return {os.path.basename(path): f"Image {i+1}" for i, path in enumerate(image_paths)}
 
-
-def create_zip(file_id):
+async def create_zip(file_id):
     log.info("Creating ZIP file...")
+    # Run ZIP creation in a thread pool to not block the event loop
+    return await asyncio.to_thread(_create_zip_sync, file_id)
+
+def _create_zip_sync(file_id):
+    """Synchronous version of create_zip for running in a thread pool"""
     with zipfile.ZipFile(zip_path(file_id), "w", zipfile.ZIP_DEFLATED) as zipf:
-        for folder in [IMAGE_DIR, TEXT_DIR]:
-            for root, _, files in os.walk(folder):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    zipf.write(file_path, os.path.relpath(file_path, TEMP_DIR))
+        for folder_func in [IMAGE_DIR, TEXT_DIR]:
+            folder = folder_func(file_id)
+            if os.path.exists(folder):
+                for root, _, files in os.walk(folder):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        zipf.write(file_path, os.path.relpath(file_path, os.path.join(TEMP_DIR, file_id)))
     log.info(f"ZIP file created: {zip_path(file_id)}")
     return zip_path(file_id)
 
-
-def clean_dir(dir):
+async def clean_dir(dir):
     try:
         if os.path.exists(dir):
-            shutil.rmtree(dir)
+            # Run removal in a thread pool to not block the event loop
+            await asyncio.to_thread(shutil.rmtree, dir)
             log.info(f"✅ Deleted: {dir}")
         else:
             log.error(f"⚠️ Not found: {dir}")
     except Exception as e:
         log.error(f"❌ Error deleting: {e}")
 
-    os.makedirs(RESULTS_DIR,exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
 
-
-def clean_temp_files():
+async def clean_temp_files():
     try:
         if os.path.exists(TEMP_DIR):
-            shutil.rmtree(TEMP_DIR)
+            # Run removal in a thread pool to not block the event loop
+            await asyncio.to_thread(shutil.rmtree, TEMP_DIR)
             log.info(f"✅ Deleted: {TEMP_DIR}")
         else:
             log.error(f"⚠️ Not found: {TEMP_DIR}")
 
         if os.path.exists(UPLOADS_DIR):
-            shutil.rmtree(UPLOADS_DIR)
+            await asyncio.to_thread(shutil.rmtree, UPLOADS_DIR)
             log.info(f"✅ Deleted: {UPLOADS_DIR}")
         else:
             log.error(f"⚠️ Not found: {UPLOADS_DIR}")
@@ -270,6 +309,5 @@ def clean_temp_files():
 
     # Recreate directories
     os.makedirs(UPLOADS_DIR, exist_ok=True)
-    os.makedirs(IMAGE_DIR, exist_ok=True)
-    os.makedirs(TEXT_DIR, exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
     log.info("✅ Directories recreated.")

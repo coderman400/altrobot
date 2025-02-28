@@ -13,14 +13,23 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('http://172.17.95.129:5000/wakeup');
-        console.log(response.data.message);
+        const response = await axios.get('https://alt-generator.onrender.com/wakeup');
+        console.log(response.data.status);
       } catch (error) {
-        console.error('Error waking up the backend:', error);
+        console.error('Error waking up the alt gen backend:', error);
+      }
+    };
+    const wakeupBackend2 = async () => {
+      try {
+        const response = await axios.get('https://altrobot-brem.onrender.com/wakeup');
+        console.log(response.data.status);
+      } catch (error) {
+        console.error('Error waking up the main backend:', error);
       }
     };
 
     wakeupBackend();
+    wakeupBackend2
   }, []);
 
   const validateFile = (file) => {
@@ -64,6 +73,28 @@ const App = () => {
     validateFile(droppedFile);
   };
 
+
+  const sendFileId = async (fileId) => {
+    if (!fileId) {
+      alert("No file ID.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`https://altrobot-brem.onrender.com/process/${fileId}`);
+      const data = response.data;
+      const fullDownloadUrl = `https://altrobot-brem.onrender.com${data.download_url}`;
+      setDownloadUrl(fullDownloadUrl);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      alert("Processing failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!file) {
       alert("Please select a .docx file.");
@@ -75,15 +106,19 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("http://172.17.95.129:5000/upload_pdf", formData, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      setDownloadUrl(url);
+      const response = await axios.post("https://altrobot-brem.onrender.com/upload/", formData);
+      const result = response.data;
+
+      if (result.file_id) {
+        console.log("File ID:", result.file_id);
+        await sendFileId(result.file_id);
+      } else {
+        console.log("ERROR");
+        setLoading(false);
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
       alert("Upload failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -144,6 +179,7 @@ const App = () => {
               <a
                 href={downloadUrl}
                 download="compressed_results.zip"
+                target="_blank"
                 className="block w-full py-3 px-4 bg-text text-dark-100 hover:bg-[#c4816b] font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-opacity-75 transition-colors text-center"
               >
                 Download Compressed ZIP
