@@ -13,7 +13,7 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8001/wakeup');
+        const response = await axios.get('https://gemini-o3oe.onrender.com/wakeup');
         console.log(response.data.status);
       } catch (error) {
         console.error('Error waking up the alt gen backend:', error);

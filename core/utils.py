@@ -251,7 +251,7 @@ async def get_alt_texts(image_paths, file_id):
                 files_data.append(("files", (os.path.basename(path), img_content, "image/jpeg")))
         
         try:
-            response = await client.post("http://127.0.0.1:8001/generate-alt-texts", files=files_data)
+            response = await client.post("https://gemini-o3oe.onrender.com/generate-alt-texts", files=files_data)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -303,7 +303,7 @@ async def clean_temp_files(file_id):
     except Exception as e:
         log.error(f"❌ Error deleting: {e}")
     
-    
+
 async def delete_path(path: str):
     """Asynchronously deletes a file or directory."""
     if not os.path.exists(path):

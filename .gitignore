@@ -135,3 +135,8 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+__pycache__
+results
+uploads
