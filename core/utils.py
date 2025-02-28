@@ -42,6 +42,7 @@ IMAGE_DIR = lambda file_id: os.path.join(TEMP_DIR, file_id, "compressed_images")
 TEXT_DIR = lambda file_id: os.path.join(TEMP_DIR, file_id, "alt_texts")
 ZIP_PATH = os.path.join(ZIP_DIR, "compressed_results.zip")
 zip_path = lambda file_id: ZIP_PATH.split(".")[0]+"_"+file_id+".zip"
+temp_path = lambda file_id: os.path.join(TEMP_DIR, file_id)
 
 os.makedirs(ZIP_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -159,7 +160,7 @@ async def process_image(docx_zip, img_name, idx, file_id):
         return None
 
 def compress_image(image_path, output_path, max_size_kb):
-    log.info(f"Compressing image: {image_path}...")
+    log.debug(f"Compressing image: {image_path}...")
     """Compress an image (JPG/PNG) to a max size in KB."""
     image = Image.open(image_path)
 
@@ -174,7 +175,7 @@ def compress_image(image_path, output_path, max_size_kb):
         quality -= 5
 
 def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
-    log.info(f"Compressing GIF: {image_path}...")
+    log.debug(f"Compressing GIF: {image_path}...")
     """Compress a GIF while preserving animation."""
     image = Image.open(image_path)
     if not isinstance(image, GifImagePlugin.GifImageFile):
@@ -239,7 +240,7 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
     return False
 
 async def get_alt_texts(image_paths, file_id):
-    log.info("Processing images for alt text...")
+    log.debug("Processing images for alt text...")
     
     # Using httpx for async HTTP requests
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -259,7 +260,7 @@ async def get_alt_texts(image_paths, file_id):
             return {os.path.basename(path): f"Image {i+1}" for i, path in enumerate(image_paths)}
 
 async def create_zip(file_id):
-    log.info("Creating ZIP file...")
+    log.debug("Creating ZIP file...")
     # Run ZIP creation in a thread pool to not block the event loop
     return await asyncio.to_thread(_create_zip_sync, file_id)
 
@@ -273,7 +274,7 @@ def _create_zip_sync(file_id):
                     for file in files:
                         file_path = os.path.join(root, file)
                         zipf.write(file_path, os.path.relpath(file_path, os.path.join(TEMP_DIR, file_id)))
-    log.info(f"ZIP file created: {zip_path(file_id)}")
+    log.debug(f"ZIP file created: {zip_path(file_id)}")
     return zip_path(file_id)
 
 async def clean_dir(dir):
@@ -289,25 +290,29 @@ async def clean_dir(dir):
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-async def clean_temp_files():
+async def clean_temp_files(file_id):
+    temp = temp_path(file_id)
     try:
-        if os.path.exists(TEMP_DIR):
+        if os.path.exists(temp):
             # Run removal in a thread pool to not block the event loop
-            await asyncio.to_thread(shutil.rmtree, TEMP_DIR)
-            log.info(f"✅ Deleted: {TEMP_DIR}")
+            await asyncio.to_thread(shutil.rmtree, temp)
+            log.info(f"✅ Deleted: {temp}")
         else:
-            log.error(f"⚠️ Not found: {TEMP_DIR}")
-
-        if os.path.exists(UPLOADS_DIR):
-            await asyncio.to_thread(shutil.rmtree, UPLOADS_DIR)
-            log.info(f"✅ Deleted: {UPLOADS_DIR}")
-        else:
-            log.error(f"⚠️ Not found: {UPLOADS_DIR}")
+            log.error(f"⚠️ Not found: {temp}")
 
     except Exception as e:
         log.error(f"❌ Error deleting: {e}")
+    
+    
+async def delete_path(path: str):
+    """Asynchronously deletes a file or directory."""
+    if not os.path.exists(path):
+        return  # Path doesn't exist, nothing to delete
 
-    # Recreate directories
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-    os.makedirs(TEMP_DIR, exist_ok=True)
-    log.info("✅ Directories recreated.")
+    try:
+        if os.path.isfile(path) or os.path.islink(path):
+            await asyncio.to_thread(os.remove, path)  # Remove file or symlink
+        elif os.path.isdir(path):
+            await asyncio.to_thread(shutil.rmtree, path)  # Remove directory and contents
+    except Exception as e:
+        print(f"Error deleting {path}: {e}")  # Replace with logging if needed

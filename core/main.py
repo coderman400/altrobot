@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException,BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import os
@@ -21,12 +21,6 @@ app.add_middleware(
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.get("/")
-async def root():
-    return FileResponse("static/index.html")
 tasks = {}
 
 @app.get("/wakeup")
@@ -68,7 +62,8 @@ async def process_file(file_id: str):
 
         # Read the file asynchronously using a thread pool
         docx_bytes = await asyncio.to_thread(lambda: open(file_path, "rb").read())
-        log.info(f"File {file_path} read successfully")
+        await delete_path(file_path)
+        log.debug(f"File {os.path.basename(file_path)} read successfully")
 
         # Extract images asynchronously
         image_paths = await extract_images_from_docx(docx_bytes, file_id)
@@ -81,7 +76,7 @@ async def process_file(file_id: str):
 
         # Get alt texts asynchronously
         alt_texts = await get_alt_texts(image_paths, file_id)
-        log.info("Extracted alt texts")
+        log.debug("Extracted alt texts")
         tasks[file_id]["progress"] = 66
 
         # Write alt texts to files asynchronously
@@ -103,7 +98,7 @@ async def process_file(file_id: str):
 
         # Create zip file asynchronously
         await create_zip(file_id)
-        log.info("Created ZIP file")
+        log.debug("Created ZIP file")
         tasks[file_id]["progress"] = 90
 
         # Processing complete
@@ -111,6 +106,7 @@ async def process_file(file_id: str):
         tasks[file_id]["progress"] = 100
         download_url = f"/download/{file_id}"
         
+        await clean_temp_files(file_id)
         return {"status": "completed", "download_url": download_url}
 
     except FileNotFoundError as e:
@@ -122,12 +118,12 @@ async def process_file(file_id: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/download/{file_id}")
-async def download_file(file_id: str):
+async def download_file(file_id: str, background_tasks: BackgroundTasks):
     """ Allows the client to download the processed file """
     try:
-        await clean_temp_files()
         zip_file = zip_path(file_id)
         if file_id in tasks and os.path.exists(zip_file):
+            background_tasks.add_task(delete_path, zip_file)
             return FileResponse(zip_file, filename=os.path.basename(zip_file))
         raise FileNotFoundError(f"ZIP file {zip_file} not found")
         

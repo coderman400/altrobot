@@ -13,7 +13,7 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('https://alt-generator.onrender.com/wakeup');
+        const response = await axios.get('http://127.0.0.1:8001/wakeup');
         console.log(response.data.status);
       } catch (error) {
         console.error('Error waking up the alt gen backend:', error);
@@ -21,7 +21,7 @@ const App = () => {
     };
     const wakeupBackend2 = async () => {
       try {
-        const response = await axios.get('https://altrobot-brem.onrender.com/wakeup');
+        const response = await axios.get('http://127.0.0.1:8000/wakeup');
         console.log(response.data.status);
       } catch (error) {
         console.error('Error waking up the main backend:', error);
@@ -29,7 +29,7 @@ const App = () => {
     };
 
     wakeupBackend();
-    wakeupBackend2
+    wakeupBackend2()
   }, []);
 
   const validateFile = (file) => {
@@ -83,9 +83,11 @@ const App = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`https://altrobot-brem.onrender.com/process/${fileId}`);
+      const response = await axios.post(`http://127.0.0.1:8000/process/${fileId}`);
       const data = response.data;
-      const fullDownloadUrl = `https://altrobot-brem.onrender.com${data.download_url}`;
+      console.log(data)
+      const fullDownloadUrl = `http://127.0.0.1:8000${data.download_url}`;
+      console.lo
       setDownloadUrl(fullDownloadUrl);
     } catch (error) {
       console.error("Error processing file:", error);
@@ -106,7 +108,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://altrobot-brem.onrender.com/upload/", formData);
+      const response = await axios.post("http://127.0.0.1:8000/upload/", formData);
       const result = response.data;
 
       if (result.file_id) {
