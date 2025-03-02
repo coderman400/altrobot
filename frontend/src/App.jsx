@@ -29,7 +29,7 @@ const App = () => {
     };
 
     wakeupBackend();
-    wakeupBackend2
+    wakeupBackend2()
   }, []);
 
   const validateFile = (file) => {
