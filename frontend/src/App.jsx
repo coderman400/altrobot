@@ -14,7 +14,7 @@ const App = () => {
     const wakeupBackend = async () => {
       try {
         const response = await axios.get('https://alt-generator.onrender.com/wakeup');
-        console.log(response.data.status);
+        console.log("Alt gen: ", response.data.status);
       } catch (error) {
         console.error('Error waking up the alt gen backend:', error);
       }
@@ -22,14 +22,14 @@ const App = () => {
     const wakeupBackend2 = async () => {
       try {
         const response = await axios.get('https://altrobot-brem.onrender.com/wakeup');
-        console.log(response.data.status);
+        console.log("Main backend: ", response.data.status);
       } catch (error) {
         console.error('Error waking up the main backend:', error);
       }
     };
 
     wakeupBackend();
-    wakeupBackend2()
+    wakeupBackend2();
   }, []);
 
   const validateFile = (file) => {
