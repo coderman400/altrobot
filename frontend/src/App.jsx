@@ -13,7 +13,7 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('https://gemini-o3oe.onrender.com/wakeup');
+        const response = await axios.get('http://localhost:8001/wakeup');
         console.log(response.data.status);
       } catch (error) {
         console.error('Error waking up the alt gen backend:', error);
@@ -21,7 +21,7 @@ const App = () => {
     };
     const wakeupBackend2 = async () => {
       try {
-        const response = await axios.get('https://altrobot-1.onrender.com/wakeup');
+        const response = await axios.get('http://localhost:8000/wakeup');
         console.log(response.data.status);
       } catch (error) {
         console.error('Error waking up the main backend:', error);
@@ -83,10 +83,10 @@ const App = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`https://altrobot-1.onrender.com/process/${fileId}`);
+      const response = await axios.post(`http://localhost:8000/process/${fileId}`);
       const data = response.data;
       console.log(data)
-      const fullDownloadUrl = `https://altrobot-1.onrender.com${data.download_url}`;
+      const fullDownloadUrl = `http://localhost:8000${data.download_url}`;
       console.lo
       setDownloadUrl(fullDownloadUrl);
     } catch (error) {
@@ -108,7 +108,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://altrobot-1.onrender.com/upload/", formData);
+      const response = await axios.post("http://localhost:8000/upload/", formData);
       const result = response.data;
 
       if (result.file_id) {
