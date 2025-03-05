@@ -3,6 +3,7 @@ import axios from "axios";
 import { FileUp, Upload, Loader2 } from 'lucide-react';
 import Navbar from "./Navbar";
 import Info from "./Info";
+import { Analytics } from '@vercel/analytics/react';
 
 const App = () => {
   const [file, setFile] = useState(null);
@@ -189,6 +190,7 @@ const App = () => {
         </div>
       </div>
       <Info />
+      <Analytics/>
     </>
   );
 };

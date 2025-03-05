@@ -2,11 +2,15 @@ import os
 import io
 import shutil
 import zipfile
+from flask import Flask, request, send_file, jsonify
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image, GifImagePlugin
+from werkzeug.utils import secure_filename
+from tqdm import tqdm
 from dotenv import load_dotenv
 from xml.etree import ElementTree
+from flask_cors import CORS
 from google.api_core import retry
 from typing_extensions import TypedDict,List
 
@@ -22,10 +26,24 @@ load_dotenv()
 # Access API Key
 api_key = os.getenv("API_KEY")
 
+# Initialize Flask
+app = Flask(__name__)
+
+CORS(app, resources={
+    r"/upload_pdf": {
+        "origins": "*",
+        "methods": ["POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    },
+    r"/wakeup": {
+        "origins": "*",
+        "methods": ["GET", "OPTIONS"]
+    }
+})
 
 # Configure Gemini API
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel(model_name="gemini-2.0-flash", tools=[add_to_database])
+model = genai.GenerativeModel(model_name="gemini-2.0-flash",tools=[add_to_database])
 
 # Directories
 TEMP_DIR = "temp_files"
@@ -96,7 +114,7 @@ def extract_images_from_docx(docx_bytes):
                     compressed_path = os.path.join(IMAGE_DIR, f"compressed_{base_name}.jpg")  # Default to JPG
 
                 if img_name.lower().endswith(("jpeg", "jpg", "png")):
-                    compress_image(file_path, compressed_path, 100)
+                    compress_image(file_path, compressed_path, 95)
                 elif img_name.lower().endswith("gif"):
                     compress_gif(file_path, compressed_path, 500)
                 else:
@@ -111,6 +129,8 @@ def extract_images_from_docx(docx_bytes):
 
                 if os.path.exists(file_path):
                     os.remove(file_path)
+
+                print(f"Processed image {idx}: {img_name}")
                 extracted_images.append(compressed_path)
 
             except Exception as e:
@@ -179,7 +199,11 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
             )
 
             compressed_size_kb = os.path.getsize(output_path) / 1024
+            print(f"Attempt {attempt + 1}: Compressed GIF size = {compressed_size_kb:.2f} KB")
+            print(f"Current dimensions: {new_width}x{new_height}, Colors: {current_colors}")
+
             if compressed_size_kb <= max_size_kb:
+                print("✅ GIF compression successful")
                 return True
 
         except Exception as e:
@@ -194,9 +218,10 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
 
         attempt += 1
 
+    print("⚠️ GIF compression failed to reach the desired size limit.")
     return False
 
-def get_alt_texts(image_paths,file_name, batch_size=8):
+def get_alt_texts(image_paths, batch_size=8):
     """Processes images in batches and retrieves alt texts."""
     alt_texts = {}
 
@@ -204,7 +229,7 @@ def get_alt_texts(image_paths,file_name, batch_size=8):
         batch = image_paths[i:i + batch_size]
 
         try:
-            print(f"🖼️ Processing batch: {batch[0]}...")
+            print(f"🖼️ Processing batch: {batch}")
 
             image_data = []
             for img_path in batch:
@@ -215,7 +240,7 @@ def get_alt_texts(image_paths,file_name, batch_size=8):
             response = model.generate_content(
                 contents=[
                     {"role": "user", "parts": [
-                        {"text": "Generate a one-line alt text for each image. Return a list, one alt text per line. Dont say anything like 'here are the alt texts' or any other generated text from your end. DONT RETURN ANYTHING ELSE BUT THE ALT TEXTS."}
+                        {"text": "Generate a one-line alt text for the image."}
                     ] + image_data}
                 ],request_options={"timeout": 1000,'retry':retry.Retry()},
                 safety_settings={
@@ -229,16 +254,11 @@ def get_alt_texts(image_paths,file_name, batch_size=8):
             for img, alt_text in zip(batch, alt_text_list):
                 alt_texts[img] = alt_text
 
-            print(f"✅ Batch processed: {alt_text_list[0]}...")
+            print(f"✅ Batch processed: {alt_text_list}")
 
         except Exception as e:
             alt_texts[img_path] = f"Error: {str(e)}"
 
-    with open("alt_texts.txt","a") as f:
-        f.write(file_name+"\n")
-        for alt_text in alt_texts.values():
-            f.write(alt_text + "\n")
-        f.write("\n")
     return alt_texts
 
 def create_zip():
@@ -253,3 +273,90 @@ def clean_temp_files():
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
     os.makedirs(IMAGE_DIR, exist_ok=True)
     os.makedirs(TEXT_DIR, exist_ok=True)
+
+@app.route("/upload_pdf", methods=["POST"])
+def upload_pdf():
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+
+        # Clean up before starting new process
+        if os.path.exists(ZIP_PATH):
+            try:
+                os.remove(ZIP_PATH)
+            except Exception as e:
+                print(f"Could not remove existing ZIP: {e}")
+
+        # Clean directories but keep the structure
+        for folder in [IMAGE_DIR, TEXT_DIR]:
+            if os.path.exists(folder):
+                for filename in os.listdir(folder):
+                    file_path = os.path.join(folder, filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print(f"Error deleting {file_path}: {e}")
+
+        # Process the file
+        docx_bytes = file.read()
+        print("READ FILE!")
+        image_paths = extract_images_from_docx(docx_bytes)
+        if not image_paths:
+            return jsonify({"error": "No images found in PDF."}), 400
+        print("IMAGES GOTTED!")
+
+        # Generate alt texts
+        alt_texts = get_alt_texts(image_paths)
+        print("ALT TEXT GOTTED!")
+
+        # Save alt texts to text files
+        for img_path, alt_text in alt_texts.items():
+            txt_filename = os.path.join(TEXT_DIR, f"{os.path.splitext(os.path.basename(img_path))[0]}.txt")
+            with open(txt_filename, "w") as txt_file:
+                txt_file.write(alt_text)
+
+        create_zip()
+
+        # Debug: Check if ZIP exists
+        if not os.path.exists(ZIP_PATH):
+            return jsonify({"error": f"ZIP file missing at {ZIP_PATH}"}), 500
+
+        try:
+            return send_file(
+                ZIP_PATH,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name='compressed_results.zip',
+                max_age=0,  # Prevent caching
+            )
+        finally:
+            # Clean up after sending the file
+            try:
+                for folder in [IMAGE_DIR, TEXT_DIR]:
+                    for filename in os.listdir(folder):
+                        file_path = os.path.join(folder, filename)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                        except Exception as e:
+                            print(f"Error during cleanup: {e}")
+
+                if os.path.exists(ZIP_PATH):
+                    os.unlink(ZIP_PATH)
+            except Exception as e:
+                print(f"Cleanup error: {e}")
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/wakeup")
+def wakeup():
+    return jsonify({"message": "Backend is awake!"})
+
+if __name__ == "__main__":
+    app.run()

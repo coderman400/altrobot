@@ -1,6 +1,6 @@
 import os
 import pytest
-from main import extract_images_from_docx, get_alt_texts, TEXT_DIR, IMAGE_DIR
+from core import extract_images_from_docx, get_alt_texts, TEXT_DIR, IMAGE_DIR
 from tqdm import tqdm
 
 DOCS_DIRECTORY = "docs"
