@@ -83,11 +83,9 @@ const App = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`http://localhost:8000/process/${fileId}`);
+      const response = await axios.post(`https://altrobot-brem.onrender.com/process/${fileId}`);
       const data = response.data;
-      console.log(data)
-      const fullDownloadUrl = `http://localhost:8000${data.download_url}`;
-      console.lo
+      const fullDownloadUrl = `https://altrobot-brem.onrender.com${data.download_url}`;
       setDownloadUrl(fullDownloadUrl);
     } catch (error) {
       console.error("Error processing file:", error);
@@ -108,7 +106,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("http://localhost:8000/upload/", formData);
+      const response = await axios.post("https://altrobot-brem.onrender.com/upload/", formData);
       const result = response.data;
 
       if (result.file_id) {
