@@ -14,7 +14,7 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('https://alt-generator.onrender.com/wakeup');
+        const response = await axios.get('https://altgenerator.onrender.com/wakeup');
         console.log("Alt gen: ", response.data.status);
       } catch (error) {
         console.error('Error waking up the alt gen backend:', error);
@@ -22,7 +22,7 @@ const App = () => {
     };
     const wakeupBackend2 = async () => {
       try {
-        const response = await axios.get('https://altrobot-brem.onrender.com/wakeup');
+        const response = await axios.get('https://altrobot.onrender.com/wakeup');
         console.log("Main backend: ", response.data.status);
       } catch (error) {
         console.error('Error waking up the main backend:', error);
@@ -84,9 +84,9 @@ const App = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`https://altrobot-brem.onrender.com/process/${fileId}`);
+      const response = await axios.post(`https://altrobot.onrender.com/process/${fileId}`);
       const data = response.data;
-      const fullDownloadUrl = `https://altrobot-brem.onrender.com${data.download_url}`;
+      const fullDownloadUrl = `https://altrobot.onrender.com${data.download_url}`;
       setDownloadUrl(fullDownloadUrl);
     } catch (error) {
       console.error("Error processing file:", error);
@@ -107,7 +107,7 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://altrobot-brem.onrender.com/upload/", formData);
+      const response = await axios.post("https://altrobot.onrender.com/upload/", formData);
       const result = response.data;
 
       if (result.file_id) {
@@ -130,6 +130,7 @@ const App = () => {
       <div className="flex flex-col items-center">
         <div className="mt-20">
           <h1 className="text-3xl text-center font-libre tracking-wider">Draft approved? Just drop the .docx</h1>
+          <div className="text-sm text-center font-libre mt-4 rounded-xl px-4 bg-[#5f51a1]/30 border-[#5f51a1] border-2  text-white/75"><p>Due to gemini 2.5 overloading , we've downgraded the AI model version. Lmk if new issues arise</p></div>
           <div className="space-y-4 mt-16 px-8 font-libre">
             <label
               htmlFor="fileInput"
