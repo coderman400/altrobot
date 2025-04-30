@@ -251,7 +251,7 @@ async def get_alt_texts(image_paths, file_id):
                 files_data.append(("files", (os.path.basename(path), img_content, "image/jpeg")))
         
         try:
-            response = await client.post("https://alt-generator.onrender.com/generate-alt-texts", files=files_data)
+            response = await client.post("https://altgenerator.onrender.com/generate-alt-texts", files=files_data)
             response.raise_for_status()
             return response.json()
         except Exception as e:
