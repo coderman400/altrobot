@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FileUp, Upload, Loader2 } from 'lucide-react';
+import { FileUp, Upload, Loader2 } from "lucide-react";
 import Navbar from "./Navbar";
 import Info from "./Info";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
 
 const App = () => {
   const [file, setFile] = useState(null);
@@ -14,18 +14,22 @@ const App = () => {
   useEffect(() => {
     const wakeupBackend = async () => {
       try {
-        const response = await axios.get('https://altgenerator.onrender.com/wakeup');
+        const response = await axios.get(
+          "https://altgenerator.onrender.com/wakeup"
+        );
         console.log("Alt gen: ", response.data.status);
       } catch (error) {
-        console.error('Error waking up the alt gen backend:', error);
+        console.error("Error waking up the alt gen backend:", error);
       }
     };
     const wakeupBackend2 = async () => {
       try {
-        const response = await axios.get('https://altrobot.onrender.com/wakeup');
+        const response = await axios.get(
+          "https://altrobot.onrender.com/wakeup"
+        );
         console.log("Main backend: ", response.data.status);
       } catch (error) {
-        console.error('Error waking up the main backend:', error);
+        console.error("Error waking up the main backend:", error);
       }
     };
 
@@ -34,7 +38,7 @@ const App = () => {
   }, []);
 
   const validateFile = (file) => {
-    if (file && file.name.toLowerCase().endsWith('.docx')) {
+    if (file && file.name.toLowerCase().endsWith(".docx")) {
       setFile(file);
       setDownloadUrl("");
     } else {
@@ -74,7 +78,6 @@ const App = () => {
     validateFile(droppedFile);
   };
 
-
   const sendFileId = async (fileId) => {
     if (!fileId) {
       alert("No file ID.");
@@ -84,7 +87,9 @@ const App = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`https://altrobot.onrender.com/process/${fileId}`);
+      const response = await axios.post(
+        `https://altrobot.onrender.com/process/${fileId}`
+      );
       const data = response.data;
       const fullDownloadUrl = `https://altrobot.onrender.com${data.download_url}`;
       setDownloadUrl(fullDownloadUrl);
@@ -107,7 +112,10 @@ const App = () => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://altrobot.onrender.com/upload/", formData);
+      const response = await axios.post(
+        "https://altrobot.onrender.com/upload/",
+        formData
+      );
       const result = response.data;
 
       if (result.file_id) {
@@ -129,14 +137,21 @@ const App = () => {
       <Navbar />
       <div className="flex flex-col items-center">
         <div className="mt-20">
-          <h1 className="text-3xl text-center font-libre tracking-wider">Draft approved? Just drop the .docx</h1>
-          <div className="text-sm text-center font-libre mt-4 rounded-xl px-4 bg-[#5f51a1]/30 border-[#5f51a1] border-2  text-white/75"><p>Due to gemini 2.5 overloading , we've downgraded the AI model version. Lmk if new issues arise</p></div>
+          <h1 className="text-3xl text-center font-libre tracking-wider">
+            Draft approved? Just drop the .docx
+          </h1>
+          <div className="text-sm text-center font-libre mt-4 rounded-xl px-4 bg-[#5f51a1]/30 border-[#5f51a1] border-2  text-white/75">
+            <p>Back to Gemini 2.5, again, let me know if it breaks</p>
+          </div>
           <div className="space-y-4 mt-16 px-8 font-libre">
             <label
               htmlFor="fileInput"
               className={`border-2 border-dashed bg-[#3d3d3a] text-text rounded-lg p-16 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                isDragging ? "border-green-500 bg-green-950 bg-opacity-10" :
-                file ? "bg-green-950 opacity-50" : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                isDragging
+                  ? "border-green-500 bg-green-950 bg-opacity-10"
+                  : file
+                  ? "bg-green-950 opacity-50"
+                  : "hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               onDragEnter={handleDragEnter}
               onDragOver={handleDragOver}
@@ -146,18 +161,28 @@ const App = () => {
               {file ? (
                 <>
                   <FileUp className="w-12 h-12 text-green-500 mb-2" />
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">{file.name}</p>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                    {file.name}
+                  </p>
                 </>
               ) : (
                 <>
                   <FileUp className="w-12 h-12 mb-2" />
                   <p className="text-sm font-medium">
-                    {isDragging ? "Drop your file here" : "Click or drag to upload .docx"}
+                    {isDragging
+                      ? "Drop your file here"
+                      : "Click or drag to upload .docx"}
                   </p>
                 </>
               )}
             </label>
-            <input type="file" id="fileInput" accept=".docx" onChange={handleFileChange} className="hidden" />
+            <input
+              type="file"
+              id="fileInput"
+              accept=".docx"
+              onChange={handleFileChange}
+              className="hidden"
+            />
             {file && (
               <button
                 onClick={handleUpload}
@@ -191,7 +216,7 @@ const App = () => {
         </div>
       </div>
       <Info />
-      <Analytics/>
+      <Analytics />
     </>
   );
 };
