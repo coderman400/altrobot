@@ -242,8 +242,11 @@ def compress_gif(image_path, output_path, max_size_kb, max_attempts=3):
 async def get_alt_texts(image_paths, file_id):
     log.debug("Processing images for alt text...")
     
-    # Using httpx for async HTTP requests
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    # Using httpx for async HTTP requests with longer timeout
+    # Timeout: connect=10s, read=300s (5 minutes), write=30s, pool=30s
+    timeout_config = httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=30.0)
+    
+    async with httpx.AsyncClient(timeout=timeout_config) as client:
         files_data = []
         for path in image_paths:
             with open(path, "rb") as img_file:
@@ -251,13 +254,21 @@ async def get_alt_texts(image_paths, file_id):
                 files_data.append(("files", (os.path.basename(path), img_content, "image/jpeg")))
         
         try:
-            response = await client.post("https://altgenerator.onrender.com/generate-alt-texts", files=files_data)
+            log.info(f"Sending {len(image_paths)} images to gemini service...")
+            response = await client.post("http://127.0.0.1:8001/generate-alt-texts", files=files_data)
             response.raise_for_status()
-            return response.json()
+            alt_texts = response.json()
+            log.info(f"Successfully received {len(alt_texts)} alt texts from gemini service")
+            return alt_texts
+        except httpx.TimeoutException as e:
+            log.error(f"Timeout error getting alt texts: {e}")
+            raise Exception(f"Gemini service timeout after {timeout_config.read}s") from e
+        except httpx.HTTPStatusError as e:
+            log.error(f"HTTP error getting alt texts: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"Gemini service returned error: {e.response.status_code}") from e
         except Exception as e:
             log.error(f"Error getting alt texts: {e}")
-            # Return empty alt texts for all images as fallback
-            return {os.path.basename(path): f"Image {i+1}" for i, path in enumerate(image_paths)}
+            raise Exception(f"Failed to get alt texts from gemini service: {str(e)}") from e
 
 async def create_zip(file_id):
     log.debug("Creating ZIP file...")

@@ -58,7 +58,7 @@ def add_to_database(alt_texts: AltTexts):
 
 # Configure Gemini API
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel(model_name="gemini-2.5-flash", tools=[add_to_database])
+model = genai.GenerativeModel(model_name="gemini-2.5-flash-lite", tools=[add_to_database])
 
 
 async def get_alt_texts(image_paths, batch_size=8):
