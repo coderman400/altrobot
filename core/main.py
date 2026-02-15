@@ -60,13 +60,10 @@ async def process_file(file_id: str):
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
-        # Read the file asynchronously using a thread pool
-        docx_bytes = await asyncio.to_thread(lambda: open(file_path, "rb").read())
+        # Extract images directly from the file on disk (avoids loading entire DOCX into memory)
+        log.debug(f"Processing file {os.path.basename(file_path)}")
+        image_paths = await extract_images_from_docx(file_path, file_id)
         await delete_path(file_path)
-        log.debug(f"File {os.path.basename(file_path)} read successfully")
-
-        # Extract images asynchronously
-        image_paths = await extract_images_from_docx(docx_bytes, file_id)
         if not image_paths:
             raise HTTPException(status_code=400, detail="No images found in document")
         
